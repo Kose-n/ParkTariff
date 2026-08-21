@@ -1,0 +1,142 @@
+ generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  OPERATIONS
+  USER
+}
+
+enum VehicleType {
+  SALOON
+  SUV
+  TRUCK
+}
+
+enum RateType {
+  HOURLY
+  FLAT
+}
+
+enum DayType {
+  ALL
+  WEEKDAY
+  WEEKEND
+  HOLIDAY
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Region ──────────────────────────────────────────────────────────────────
+
+model Region {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  // e.g. "Airport", "CBD", "Hospital"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  zones       TariffZone[]
+  assignments RegionAssignment[]
+}
+
+// ─── Region Assignment ────────────────────────────────────────────────────────
+// Links an OPERATIONS user to a specific region
+
+model RegionAssignment {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, regionId])
+  // Prevents the same user being assigned to the same region twice
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(USER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    ParkingSession[]
+  assignments RegionAssignment[]
+}
+
+// ─── Tariff Zone ─────────────────────────────────────────────────────────────
+
+model TariffZone {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Each zone belongs to a region
+  regionId    String?
+  region      Region?  @relation(fields: [regionId], references: [id])
+
+  tariffs     Tariff[]
+  sessions    ParkingSession[]
+}
+
+// ─── Tariff ──────────────────────────────────────────────────────────────────
+
+model Tariff {
+  id           String      @id @default(uuid())
+  zoneId       String
+  zone         TariffZone  @relation(fields: [zoneId], references: [id])
+  vehicleType  VehicleType
+  rateType     RateType    @default(HOURLY)
+  ratePerHour  Decimal?    @db.Decimal(10, 2)
+  flatRate     Decimal?    @db.Decimal(10, 2)
+  minCharge    Decimal     @default(0) @db.Decimal(10, 2)
+  maxDailyRate Decimal?    @db.Decimal(10, 2)
+  startTime    String?
+  endTime      String?
+  dayType      DayType     @default(ALL)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+// ─── Parking Session ─────────────────────────────────────────────────────────
+
+model ParkingSession {
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  zoneId       String
+  zone         TariffZone    @relation(fields: [zoneId], references: [id])
+  vehicleType  VehicleType
+  licensePlate String
+  entryTime    DateTime      @default(now())
+  exitTime     DateTime?
+  totalCost    Decimal?      @db.Decimal(10, 2)
+  status       SessionStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+
+  @@index([userId])
+  @@index([zoneId])
+  @@index([status])
+}
