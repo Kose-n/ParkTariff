@@ -44,7 +44,3 @@ cp .env.example .env        # fill in your values
 npm start
 ```
 
-## Default credentials (after seeding)
-- Admin: admin@parktariff.com / admin123
-- Ops (Airport): ops.airport@parktariff.com / ops123
-- Test user: user@parktariff.com / user123
